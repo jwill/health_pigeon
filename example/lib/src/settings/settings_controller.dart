@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:health_pigeon_example/src/settings/settings_service.dart';
 import 'dart:io' show File, Platform;
+import 'package:signals/signals.dart';
 
 /// A class that many Widgets can interact with to listen to user settings changes.
 class SettingsController with ChangeNotifier {
@@ -17,15 +18,30 @@ class SettingsController with ChangeNotifier {
   final CsvService _csvService;
   final HealthConnectService healthConnectService;
   late ThemeMode _themeMode;
-  late bool _showLowestOnly;
-  BPRecordSignal recordsSignal;
- 
+  final showLowestOnly = signal(false);
+  final BPRecordSignal recordsSignal;
+
+  late final filteredRecords = computed(() {
+    final allRecords = recordsSignal.value;
+    if (!showLowestOnly.value) return allRecords;
+
+    final lowestPerDay = <String, BPRecord>{};
+    for (final record in allRecords) {
+      final dateKey = '${record.date.year}-${record.date.month}-${record.date.day}';
+      final existing = lowestPerDay[dateKey];
+      if (existing == null || record.systolic < existing.systolic) {
+        lowestPerDay[dateKey] = record;
+      }
+    }
+    return lowestPerDay.values.toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+  });
+
   ThemeMode get themeMode => _themeMode;
-  bool get showLowestOnly => _showLowestOnly;
  
   Future<void> loadSettings() async {
     _themeMode = await _settingsService.themeMode();
-    _showLowestOnly = await _settingsService.showLowestOnly();
+    showLowestOnly.value = await _settingsService.showLowestOnly();
     notifyListeners();
   }
 
@@ -39,9 +55,8 @@ class SettingsController with ChangeNotifier {
 
   Future<void> updateShowLowestOnly(bool? value) async {
     if (value == null) return;
-    if (value == _showLowestOnly) return;
-    _showLowestOnly = value;
-    notifyListeners();
+    if (value == showLowestOnly.value) return;
+    showLowestOnly.value = value;
     await _settingsService.updateShowLowestOnly(value);
   }
 
@@ -55,7 +70,6 @@ class SettingsController with ChangeNotifier {
 
       if (records.isNotEmpty) {
         recordsSignal.value = records;
-        notifyListeners();
         return records;
       }
     }

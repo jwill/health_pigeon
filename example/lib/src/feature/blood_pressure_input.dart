@@ -3,35 +3,33 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:signals/signals_flutter.dart';
 
 class BloodPressureInput extends StatefulWidget {
-  final date = signal(DateTime.now());
-  final systolic = signal('');
-  final diastolic = signal('');
-  final notes = signal('');
-
-  BloodPressureInput({super.key});
+  const BloodPressureInput({super.key});
 
   @override
   State<BloodPressureInput> createState() => _BloodPressureInputState();
 }
 
 class _BloodPressureInputState extends State<BloodPressureInput> {
-  late TextEditingController _systolicController;
-  late TextEditingController _diastolicController;
-  late TextEditingController _notesController;
+  static final _dateFormat = DateFormat.yMMMd();
+  static final _timeFormat = DateFormat.jm();
+
+  late final Signal<DateTime> _dateSignal;
+  late final TextEditingController _systolicController;
+  late final TextEditingController _diastolicController;
+  late final TextEditingController _notesController;
 
   @override
   void initState() {
     super.initState();
-    _systolicController =
-        TextEditingController(text: widget.systolic.value.toString());
-    _diastolicController =
-        TextEditingController(text: widget.diastolic.value.toString());
-    _notesController =
-        TextEditingController(text: widget.notes.value.toString());
+    _dateSignal = signal(DateTime.now());
+    _systolicController = TextEditingController();
+    _diastolicController = TextEditingController();
+    _notesController = TextEditingController();
   }
 
   @override
   void dispose() {
+    _dateSignal.dispose();
     _systolicController.dispose();
     _diastolicController.dispose();
     _notesController.dispose();
@@ -50,7 +48,6 @@ class _BloodPressureInputState extends State<BloodPressureInput> {
           controller: _systolicController,
           keyboardType: TextInputType.number,
           placeholder: const Text('Top number (e.g. 120)'),
-          onChanged: (value) => widget.systolic.value = value,
         ),
         const SizedBox(height: 12),
         Text('Diastolic (mmHg)', style: theme.textTheme.small),
@@ -59,7 +56,6 @@ class _BloodPressureInputState extends State<BloodPressureInput> {
           controller: _diastolicController,
           keyboardType: TextInputType.number,
           placeholder: const Text('Bottom number (e.g. 80)'),
-          onChanged: (value) => widget.diastolic.value = value,
         ),
         const SizedBox(height: 12),
         Text('Notes (optional)', style: theme.textTheme.small),
@@ -67,7 +63,6 @@ class _BloodPressureInputState extends State<BloodPressureInput> {
         ShadInput(
           controller: _notesController,
           placeholder: const Text('Optional note...'),
-          onChanged: (value) => widget.notes.value = value,
         ),
         const SizedBox(height: 16),
         Container(
@@ -82,10 +77,12 @@ class _BloodPressureInputState extends State<BloodPressureInput> {
                 children: [
                   const Icon(LucideIcons.calendar, size: 18),
                   const SizedBox(width: 8),
-                  Watch((context) => Text(
-                    DateFormat.yMMMd().format(widget.date.value),
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  )),
+                  SignalBuilder(
+                    builder: (context) => Text(
+                      _dateFormat.format(_dateSignal.value),
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
                   const Spacer(),
                   ShadButton.outline(
                     size: ShadButtonSize.sm,
@@ -93,11 +90,11 @@ class _BloodPressureInputState extends State<BloodPressureInput> {
                     onPressed: () async {
                       final val = await showDatePicker(
                         context: context,
-                        initialDate: widget.date.value,
+                        initialDate: _dateSignal.value,
                         firstDate: DateTime.now().subtract(const Duration(days: 365)),
                         lastDate: DateTime.now(),
                       );
-                      if (val != null) widget.date.value = val;
+                      if (val != null) _dateSignal.value = val;
                     },
                     child: const Text('Change'),
                   ),
@@ -110,10 +107,12 @@ class _BloodPressureInputState extends State<BloodPressureInput> {
                 children: [
                   const Icon(LucideIcons.clock, size: 18),
                   const SizedBox(width: 8),
-                  Watch((context) => Text(
-                    DateFormat.jm().format(widget.date.value),
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  )),
+                  SignalBuilder(
+                    builder: (context) => Text(
+                      _timeFormat.format(_dateSignal.value),
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
                   const Spacer(),
                   ShadButton.outline(
                     size: ShadButtonSize.sm,
@@ -121,10 +120,10 @@ class _BloodPressureInputState extends State<BloodPressureInput> {
                     onPressed: () async {
                       final val = await showTimePicker(
                         context: context,
-                        initialTime: TimeOfDay.fromDateTime(widget.date.value),
+                        initialTime: TimeOfDay.fromDateTime(_dateSignal.value),
                       );
                       if (val != null) {
-                        widget.date.value = widget.date.value.copyWith(
+                        _dateSignal.value = _dateSignal.value.copyWith(
                           hour: val.hour,
                           minute: val.minute,
                         );

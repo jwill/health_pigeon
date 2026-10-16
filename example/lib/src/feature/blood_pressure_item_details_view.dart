@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:signals/signals_flutter.dart';
 
-import 'package:health_pigeon_example/src/data/bp_record.dart';
 import '../data/bp_record_signal.dart';
 
 /// Displays detailed information about a blood pressure reading.
@@ -10,12 +9,13 @@ class BloodPressureItemDetailsView extends StatelessWidget {
   const BloodPressureItemDetailsView({super.key});
 
   static const routeName = '/sample_item';
+  static final _dateFormat = DateFormat.yMMMd().add_jm();
 
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
     final record = ModalRoute.of(context)?.settings.arguments as Map<String, String>?;
-    final signal = SignalProvider.of<BPRecordSignal>(context)!;
+    final signal = SignalProvider.of<BPRecordSignal>(context, listen: false)!;
 
     if (record == null) {
       return Scaffold(
@@ -44,7 +44,7 @@ class BloodPressureItemDetailsView extends StatelessWidget {
               ),
               description: Text(
                 parsedDate != null
-                    ? DateFormat.yMMMd().add_jm().format(parsedDate)
+                    ? _dateFormat.format(parsedDate)
                     : (record['date'] ?? ''),
               ),
               child: record['notes']?.isNotEmpty == true
@@ -64,9 +64,7 @@ class BloodPressureItemDetailsView extends StatelessWidget {
                 leading: const Icon(LucideIcons.trash2, size: 16),
                 onPressed: () {
                   if (parsedDate != null) {
-                    signal.value.removeWhere((BPRecord elem) => elem.date == parsedDate);
-                    signal.save(signal.value);
-                    signal.set(signal.value, force: true);
+                    signal.value = signal.value.where((elem) => elem.date != parsedDate).toList();
                   }
                   Navigator.pop(context);
                 },

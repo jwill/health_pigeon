@@ -20,8 +20,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext bcontext) {
-    return SignalProvider<BPRecordSignal>(
-      create: () => signal,
+    return SignalProvider<BPRecordSignal>.value(
+      value: signal,
       child: ListenableBuilder(
         listenable: settingsController,
         builder: (BuildContext context, Widget? child) {

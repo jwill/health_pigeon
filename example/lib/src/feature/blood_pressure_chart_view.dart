@@ -9,7 +9,7 @@ import 'package:signals/signals_flutter.dart';
 import 'package:widgets_to_image/widgets_to_image.dart';
 
 /// Displays a list of SampleItems.
-class BloodPressureChartView extends StatelessWidget {
+class BloodPressureChartView extends StatefulWidget {
   const BloodPressureChartView({
     super.key,
   });
@@ -17,36 +17,72 @@ class BloodPressureChartView extends StatelessWidget {
   static const routeName = '/b';
 
   @override
+  State<BloodPressureChartView> createState() => _BloodPressureChartViewState();
+}
+
+class _BloodPressureChartViewState extends State<BloodPressureChartView> {
+  late final WidgetsToImageController _imageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _imageController = WidgetsToImageController();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final signal = SignalProvider.of<BPRecordSignal>(context)!;
-    WidgetsToImageController controller = WidgetsToImageController();
+    final signal = SignalProvider.of<BPRecordSignal>(context, listen: false)!;
 
-    var items = signal.value; //box.getValues();
+    return SignalBuilder(
+      builder: (context) {
+        final items = signal.value;
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: WidgetsToImage(
-            controller: controller,
-            child: _buildChart(context, items.toList()),
-          ),
-        ),
-        Positioned(
-          right: 0,
-          bottom: 16,
-          child: FloatingActionButton(
-            heroTag: 'export_chart_fab',
-            onPressed: () async {
-              var bytes = await controller.capture();
-              if (bytes != null) {
-                SettingsController.saveImage(bytes);
-              }
-            },
-            tooltip: 'Export Chart',
-            child: const Icon(LucideIcons.camera),
-          ),
-        ),
-      ],
+        if (items.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  LucideIcons.lineChart,
+                  size: 48,
+                  color: ShadTheme.of(context).colorScheme.mutedForeground,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No blood pressure records for chart',
+                  style: ShadTheme.of(context).textTheme.muted,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: WidgetsToImage(
+                controller: _imageController,
+                child: _buildChart(context, items),
+              ),
+            ),
+            Positioned(
+              right: 0,
+              bottom: 16,
+              child: FloatingActionButton(
+                heroTag: 'export_chart_fab',
+                onPressed: () async {
+                  var bytes = await _imageController.capture();
+                  if (bytes != null) {
+                    SettingsController.saveImage(bytes);
+                  }
+                },
+                tooltip: 'Export Chart',
+                child: const Icon(LucideIcons.camera),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

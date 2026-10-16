@@ -71,9 +71,11 @@ class SettingsView extends StatelessWidget {
                         style: theme.textTheme.p,
                       ),
                     ),
-                    ShadSwitch(
-                      value: controller.showLowestOnly,
-                      onChanged: controller.updateShowLowestOnly,
+                    SignalBuilder(
+                      builder: (context) => ShadSwitch(
+                        value: controller.showLowestOnly.value,
+                        onChanged: controller.updateShowLowestOnly,
+                      ),
                     ),
                   ],
                 ),
@@ -135,49 +137,53 @@ class SettingsView extends StatelessWidget {
                       onPressed: controller.saveFile,
                       child: const Text('Export CSV Data'),
                     ),
-                    Watch((context) {
-                      final isConnected = controller.healthConnectService.isConnected.value;
-                      final hasRecords = controller.recordsSignal.value.isNotEmpty;
-                      if (isConnected && hasRecords) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: ShadButton(
-                            leading: const Icon(LucideIcons.refreshCw, size: 16),
-                            onPressed: () async {
-                              await controller.healthConnectService
-                                  .batchInsertBloodPressure(controller.recordsSignal.value);
-                              if (context.mounted) {
-                                ShadToaster.of(context).show(
-                                  const ShadToast(
-                                    title: Text('Sync Complete'),
-                                    description: Text('All records synced to Health Connect.'),
-                                  ),
-                                );
-                              }
-                            },
-                            child: const Text('Sync All to Health Connect'),
+                    SignalBuilder(
+                      builder: (context) {
+                        final isConnected = controller.healthConnectService.isConnected.value;
+                        final hasRecords = controller.recordsSignal.value.isNotEmpty;
+                        if (isConnected && hasRecords) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: ShadButton(
+                              leading: const Icon(LucideIcons.refreshCw, size: 16),
+                              onPressed: () async {
+                                await controller.healthConnectService
+                                    .batchInsertBloodPressure(controller.recordsSignal.value);
+                                if (context.mounted) {
+                                  ShadToaster.of(context).show(
+                                    const ShadToast(
+                                      title: Text('Sync Complete'),
+                                      description: Text('All records synced to Health Connect.'),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: const Text('Sync All to Health Connect'),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    SignalBuilder(
+                      builder: (context) {
+                        final isConnected = controller.healthConnectService.isConnected.value;
+                        return ShadButton(
+                          leading: Icon(
+                            isConnected ? LucideIcons.checkCircle2 : LucideIcons.link,
+                            size: 16,
+                          ),
+                          backgroundColor: isConnected ? const Color(0xFF16A34A) : null,
+                          onPressed: () {
+                            controller.healthConnectService.requestPermissions();
+                          },
+                          child: Text(
+                            isConnected ? 'Connected to Health Connect' : 'Connect to Health Connect',
                           ),
                         );
-                      }
-                      return const SizedBox.shrink();
-                    }),
-                    const SizedBox(height: 8),
-                    Watch((context) {
-                      final isConnected = controller.healthConnectService.isConnected.value;
-                      return ShadButton(
-                        leading: Icon(
-                          isConnected ? LucideIcons.checkCircle2 : LucideIcons.link,
-                          size: 16,
-                        ),
-                        backgroundColor: isConnected ? const Color(0xFF16A34A) : null,
-                        onPressed: () {
-                          controller.healthConnectService.requestPermissions();
-                        },
-                        child: Text(
-                          isConnected ? 'Connected to Health Connect' : 'Connect to Health Connect',
-                        ),
-                      );
-                    }),
+                      },
+                    ),
                     const SizedBox(height: 12),
                     const Divider(),
                     const SizedBox(height: 12),

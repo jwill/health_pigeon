@@ -31,21 +31,32 @@ class _BloodPressureListViewState extends State<BloodPressureListView> {
     );
   }
 
+  static final _dateFormat = DateFormat.yMMMd();
+  static final _timeFormat = DateFormat.jm();
+
   Widget _buildCategoryBadge(BPRecord record) {
     if (record.systolic < 120 && record.diastolic < 80) {
       return const ShadBadge(
+        backgroundColor: Color(0xFF008652),
+        foregroundColor: Color(0xFFF6FFF5),
         child: Text('Normal'),
       );
     } else if (record.systolic <= 129 && record.diastolic < 80) {
-      return const ShadBadge.secondary(
+      return const ShadBadge(
+        backgroundColor: Color(0xFFF0DC17),
+        foregroundColor: Color(0xFF696000),
         child: Text('Elevated'),
       );
     } else if (record.systolic <= 139 || record.diastolic <= 89) {
-      return const ShadBadge.outline(
+      return const ShadBadge(
+        backgroundColor: Colors.orange,
+        foregroundColor: Color(0xFF302202),
         child: Text('Stage 1'),
       );
     } else {
-      return const ShadBadge.destructive(
+      return const ShadBadge(
+        backgroundColor: Colors.red,
+        foregroundColor: Colors.white,
         child: Text('Stage 2'),
       );
     }
@@ -99,14 +110,14 @@ class _BloodPressureListViewState extends State<BloodPressureListView> {
                         Icon(LucideIcons.calendar, size: 14, color: theme.colorScheme.mutedForeground),
                         const SizedBox(width: 4),
                         Text(
-                          DateFormat.yMMMd().format(item.date),
+                          _dateFormat.format(item.date),
                           style: theme.textTheme.muted.copyWith(fontSize: 12),
                         ),
                         const SizedBox(width: 12),
                         Icon(LucideIcons.clock, size: 14, color: theme.colorScheme.mutedForeground),
                         const SizedBox(width: 4),
                         Text(
-                          DateFormat.jm().format(item.date),
+                          _timeFormat.format(item.date),
                           style: theme.textTheme.muted.copyWith(fontSize: 12),
                         ),
                       ],
@@ -137,70 +148,47 @@ class _BloodPressureListViewState extends State<BloodPressureListView> {
   }
 
   Widget _buildList(BuildContext context) {
-    final signal = SignalProvider.of<BPRecordSignal>(context)!;
+    return SignalBuilder(
+      builder: (context) {
+        final displayRecords = widget.controller.filteredRecords.value;
 
-    return ListenableBuilder(
-      listenable: widget.controller,
-      builder: (context, child) {
-        return Watch((context) {
-          final allRecords = signal.value;
-          List<BPRecord> displayRecords;
-
-          if (widget.controller.showLowestOnly) {
-            // Group by day and find lowest systolic
-            final Map<String, BPRecord> lowestPerDay = {};
-
-            for (var record in allRecords) {
-              final dateKey = DateFormat('yyyy-MM-dd').format(record.date);
-              if (!lowestPerDay.containsKey(dateKey) ||
-                  record.systolic < lowestPerDay[dateKey]!.systolic) {
-                lowestPerDay[dateKey] = record;
-              }
-            }
-            displayRecords = lowestPerDay.values.toList()
-              ..sort((a, b) => a.date.compareTo(b.date));
-          } else {
-            displayRecords = allRecords;
-          }
-
-          if (displayRecords.isEmpty) {
-            return LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          LucideIcons.activity,
-                          size: 48,
-                          color: ShadTheme.of(context).colorScheme.mutedForeground,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No blood pressure records yet',
-                          style: ShadTheme.of(context).textTheme.muted,
-                        ),
-                      ],
-                    ),
+        if (displayRecords.isEmpty) {
+          return LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        LucideIcons.activity,
+                        size: 48,
+                        color: ShadTheme.of(context).colorScheme.mutedForeground,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No blood pressure records yet',
+                        style: ShadTheme.of(context).textTheme.muted,
+                      ),
+                    ],
                   ),
                 ),
               ),
-            );
-          }
-
-          return ListView.builder(
-            restorationId: 'bloodPressureItemListView',
-            itemCount: displayRecords.length,
-            padding: const EdgeInsets.only(top: 12, bottom: 80),
-            itemBuilder: (BuildContext context, int index) {
-              final item = displayRecords[index];
-              return _buildItem(context, item);
-            },
+            ),
           );
-        });
+        }
+
+        return ListView.builder(
+          restorationId: 'bloodPressureItemListView',
+          itemCount: displayRecords.length,
+          padding: const EdgeInsets.only(top: 12, bottom: 80),
+          itemBuilder: (BuildContext context, int index) {
+            final item = displayRecords[index];
+            return _buildItem(context, item);
+          },
+        );
       },
     );
   }

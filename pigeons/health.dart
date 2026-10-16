@@ -42,6 +42,9 @@ abstract class HealthConnectApi {
   void requestPermissions();
 
   @async
+  void openHealthConnectSettings();
+
+  @async
   List<BloodPressureRecordPigeon> readBloodPressure(int startMillis, int endMillis);
 
   @async

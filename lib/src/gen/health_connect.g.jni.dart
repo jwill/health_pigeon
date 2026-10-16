@@ -500,6 +500,65 @@ extension HealthConnectApiRegistrar$$Methods on HealthConnectApiRegistrar {
     return;
   }
 
+  static final _id_openHealthConnectSettings = HealthConnectApiRegistrar._class
+      .instanceMethodId(
+        r'openHealthConnectSettings',
+        r'(Lkotlin/coroutines/Continuation;)Ljava/lang/Object;',
+      );
+
+  static final _openHealthConnectSettings =
+      jni$_.ProtectedJniExtensions.lookup<
+            jni$_.NativeFunction<
+              jni$_.JniResult Function(
+                jni$_.Pointer<jni$_.Void>,
+                jni$_.JMethodIDPtr,
+                jni$_.VarArgs<(jni$_.Pointer<jni$_.Void>,)>,
+              )
+            >
+          >('globalEnv_CallObjectMethod')
+          .asFunction<
+            jni$_.JniResult Function(
+              jni$_.Pointer<jni$_.Void>,
+              jni$_.JMethodIDPtr,
+              jni$_.Pointer<jni$_.Void>,
+            )
+          >();
+
+  /// from: `public suspend fun openHealthConnectSettings(): kotlin.Unit`
+  /// The returned object must be released after use, by calling the [release] method.
+  core$_.Future<void> openHealthConnectSettings() async {
+    final $p = jni$_.ReceivePort();
+    final _$continuation = jni$_.ProtectedJniExtensions.newPortContinuation($p);
+    final _$$selfRef = reference;
+    final $r = _openHealthConnectSettings(
+      _$$selfRef.pointer,
+      _id_openHealthConnectSettings.pointer,
+      _$continuation.pointer,
+    ).object<jni$_.JObject>();
+    _$continuation.release();
+    jni$_.JObject $o;
+    if ($r.isInstanceOf(jni$_.coroutineSingletonsClass)) {
+      $r.release();
+      final $a = await $p.first;
+      $o = jni$_.JObject.fromReference(
+        jni$_.JGlobalReference(jni$_.JObjectPtr.fromAddress($a)),
+      );
+      if ($o.isInstanceOf(jni$_.result$Class)) {
+        $o = jni$_.resultValueField.get($o, const jni$_.$JObject$Type$());
+      } else if ($o.isInstanceOf(jni$_.result$FailureClass)) {
+        final $e = jni$_.failureExceptionField.get(
+          $o,
+          const jni$_.$JObject$Type$(),
+        );
+        $o.release();
+        jni$_.Jni.throwException($e.reference.toPointer());
+      }
+    } else {
+      $o = $r;
+    }
+    return;
+  }
+
   static final _id_readBloodPressure = HealthConnectApiRegistrar._class
       .instanceMethodId(
         r'readBloodPressure',

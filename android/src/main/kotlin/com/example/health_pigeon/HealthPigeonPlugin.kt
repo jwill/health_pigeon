@@ -3,6 +3,10 @@ package com.example.health_pigeon
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -23,6 +27,7 @@ class HealthPigeonPlugin : FlutterPlugin, ActivityAware, HealthConnectApi {
     private var context: Context? = null
     private var activity: Activity? = null
     private var permissionLauncher: androidx.activity.result.ActivityResultLauncher<Set<String>>? = null
+    private var permissionContinuation: kotlin.coroutines.Continuation<Unit>? = null
 
     private val PERMISSIONS = setOf(
         HealthPermission.getReadPermission(BloodPressureRecord::class),
@@ -51,7 +56,8 @@ class HealthPigeonPlugin : FlutterPlugin, ActivityAware, HealthConnectApi {
                 compAct,
                 contract
             ) { grantedPermissions ->
-                // Permissions response handled automatically
+                permissionContinuation?.resumeWith(Result.success(Unit))
+                permissionContinuation = null
             }
         }
         HealthConnectApiRegistrar().register(this)
@@ -67,6 +73,8 @@ class HealthPigeonPlugin : FlutterPlugin, ActivityAware, HealthConnectApi {
 
     override fun onDetachedFromActivity() {
         HealthConnectApiRegistrar().register(null)
+        permissionContinuation?.resumeWith(Result.success(Unit))
+        permissionContinuation = null
         permissionLauncher?.unregister()
         permissionLauncher = null
         activity = null
@@ -85,7 +93,48 @@ class HealthPigeonPlugin : FlutterPlugin, ActivityAware, HealthConnectApi {
 
     override suspend fun requestPermissions() {
         withContext(Dispatchers.Main) {
-            permissionLauncher?.launch(PERMISSIONS)
+            val launcher = permissionLauncher ?: return@withContext
+            kotlinx.coroutines.suspendCancellableCoroutine<Unit> { cont ->
+                permissionContinuation = cont
+                cont.invokeOnCancellation {
+                    if (permissionContinuation === cont) {
+                        permissionContinuation = null
+                    }
+                }
+                launcher.launch(PERMISSIONS)
+            }
+        }
+    }
+
+    override suspend fun openHealthConnectSettings() {
+        val act = activity ?: context ?: return
+        withContext(Dispatchers.Main) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    val manageIntent = Intent("android.health.connect.action.MANAGE_HEALTH_PERMISSIONS").apply {
+                        putExtra(Intent.EXTRA_PACKAGE_NAME, act.packageName)
+                        if (activity == null) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    if (act.packageManager.resolveActivity(manageIntent, PackageManager.MATCH_DEFAULT_ONLY) != null) {
+                        act.startActivity(manageIntent)
+                        return@withContext
+                    }
+                }
+                val hcIntent = Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS).apply {
+                    if (activity == null) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                if (act.packageManager.resolveActivity(hcIntent, PackageManager.MATCH_DEFAULT_ONLY) != null) {
+                    act.startActivity(hcIntent)
+                    return@withContext
+                }
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", act.packageName, null)
+                    if (activity == null) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                act.startActivity(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

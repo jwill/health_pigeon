@@ -248,6 +248,7 @@ val HealthConnectApiInstances: MutableMap<String, HealthConnectApiRegistrar> = m
 interface HealthConnectApi {
   suspend fun hasPermissions(): Boolean
   suspend fun requestPermissions()
+  suspend fun openHealthConnectSettings()
   suspend fun readBloodPressure(startMillis: Long, endMillis: Long): List<BloodPressureRecordPigeon>
   suspend fun writeBloodPressure(record: BloodPressureRecordPigeon)
 }
@@ -286,6 +287,17 @@ class HealthConnectApiRegistrar : HealthConnectApi {
     api?.let {
       try {
         return it.requestPermissions()
+      } catch (e: Exception) {
+        throw e
+      }
+    }
+    error("HealthConnectApi has not been registered")
+  }
+  override suspend fun openHealthConnectSettings()
+ {
+    api?.let {
+      try {
+        return it.openHealthConnectSettings()
       } catch (e: Exception) {
         throw e
       }

@@ -3,7 +3,6 @@ import 'package:signals/signals.dart';
 import 'package:flutter/services.dart';
 import 'package:health_pigeon/health_pigeon.dart';
 import 'package:health_pigeon_example/src/data/bp_record.dart';
-import 'package:permissions_plugin_pigeon/src/messages.g.dart';
 
 class HealthConnectService {
   final HealthConnectApi _api = HealthConnectApi.createWithNativeInteropApi();
@@ -26,14 +25,27 @@ class HealthConnectService {
 
   Future<void> requestPermissions() async {
     try {
-      final api = PermissionsApi.createWithNativeInteropApi();
-      api.requestPermissions([
-        'android.permission.health.READ_BLOOD_PRESSURE',
-        'android.permission.health.WRITE_BLOOD_PRESSURE',
-      ]);
+      if (await _api.hasPermissions()) {
+        isConnected.value = true;
+        return;
+      }
+      await _api.requestPermissions();
       await _updateConnectionStatus();
+      if (!isConnected.value) {
+        // Health Connect only prompts once via activity contract.
+        // If permissions remain ungranted, redirect to Health Connect settings.
+        await _api.openHealthConnectSettings();
+      }
     } catch (e) {
       print("Error requesting permissions via FFI: $e");
+    }
+  }
+
+  Future<void> openSettings() async {
+    try {
+      await _api.openHealthConnectSettings();
+    } catch (e) {
+      print("Error opening Health Connect settings: $e");
     }
   }
 

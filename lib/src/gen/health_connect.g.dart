@@ -415,6 +415,18 @@ class HealthConnectApiForNativeInterop {
     }
   }
 
+  Future<void> openHealthConnectSettings() async {
+    try {
+      if (_jniApi != null) {
+        await _jniApi.openHealthConnectSettings();
+      } else {
+        throw Exception('No JNI or FFI api available');
+      }
+    } on JThrowable catch (e) {
+      throw _wrapJniException(e);
+    }
+  }
+
   Future<List<BloodPressureRecordPigeon>> readBloodPressure(int startMillis, int endMillis) async {
     try {
       if (_jniApi != null) {
@@ -525,6 +537,27 @@ class HealthConnectApi {
       return _nativeInteropApi.requestPermissions();
     }
     final pigeonVar_channelName = 'dev.flutter.pigeon.blood_pressure_app.HealthConnectApi.requestPermissions$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> openHealthConnectSettings() async {
+    if (_nativeInteropApi != null) {
+      return _nativeInteropApi.openHealthConnectSettings();
+    }
+    final pigeonVar_channelName = 'dev.flutter.pigeon.blood_pressure_app.HealthConnectApi.openHealthConnectSettings$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,

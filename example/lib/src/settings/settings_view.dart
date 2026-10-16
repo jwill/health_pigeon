@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:signals_flutter/signals_flutter.dart';
 
 import 'package:health_pigeon_example/src/settings/settings_controller.dart';
 
 /// Displays the various settings that can be customized by the user.
-///
-/// When a user changes a setting, the SettingsController is updated and
-/// Widgets that listen to the SettingsController are rebuilt.
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key, required this.controller});
 
@@ -16,161 +14,205 @@ class SettingsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final theme = ShadTheme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text('Settings', style: theme.textTheme.h4),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        // Glue the SettingsController to the theme selection DropdownButton.
-        //
-        // When a user selects a theme from the dropdown list, the
-        // SettingsController is updated, which rebuilds the MaterialApp.
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Text("Brightness", style: textTheme.bodyLarge,),
-                const Spacer(),
-                DropdownButton<ThemeMode>(
-                  // Read the selected themeMode from the controller
-                  value: controller.themeMode,
-                  // Call the updateThemeMode method any time the user selects a theme.
-                  onChanged: controller.updateThemeMode,
-                  items: const [
-                    DropdownMenuItem(
-                      value: ThemeMode.system,
-                      child: Text('System Theme'),
+            ShadCard(
+              title: const Text('Appearance'),
+              description: const Text('Customize how the app looks on your device'),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Theme Mode', style: theme.textTheme.p),
+                    ShadSelect<ThemeMode>(
+                      initialValue: controller.themeMode,
+                      placeholder: const Text('Select theme'),
+                      minWidth: 160,
+                      options: const [
+                        ShadOption(value: ThemeMode.system, child: Text('System Theme')),
+                        ShadOption(value: ThemeMode.light, child: Text('Light Theme')),
+                        ShadOption(value: ThemeMode.dark, child: Text('Dark Theme')),
+                      ],
+                      selectedOptionBuilder: (context, value) {
+                        return Text(switch (value) {
+                          ThemeMode.system => 'System Theme',
+                          ThemeMode.light => 'Light Theme',
+                          ThemeMode.dark => 'Dark Theme',
+                        });
+                      },
+                      onChanged: (mode) {
+                        if (mode != null) controller.updateThemeMode(mode);
+                      },
                     ),
-                    DropdownMenuItem(
-                      value: ThemeMode.light,
-                      child: Text('Light Theme'),
-                    ),
-                    DropdownMenuItem(
-                      value: ThemeMode.dark,
-                      child: Text('Dark Theme'),
-                    )
                   ],
                 ),
-              ],
+              ),
             ),
-            SizedBox(
-              height: 8,
-            ),
-            SwitchListTile(
-              title: const Text('Show lowest reading per day'),
-              value: controller.showLowestOnly,
-              onChanged: controller.updateShowLowestOnly,
-              contentPadding: EdgeInsets.zero,
-            ),
-            SizedBox(
-              height: 16,
-            ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: double.infinity),
-              child: FilledButton(
-                  onPressed: () async {
-                    final records = await controller.loadFile();
-                    if (records != null && controller.healthConnectService.isConnected.value && context.mounted) {
-                      final shouldSync = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Sync to Health Connect?'),
-                          content: Text('Do you want to sync ${records.length} records to Health Connect?'),
-                          actions: [
-                            TextButton(child: const Text('No'), onPressed: () => Navigator.pop(context, false)),
-                            TextButton(child: const Text('Yes'), onPressed: () => Navigator.pop(context, true)),
-                          ],
-                        ),
-                      );
-                      
-                      if (shouldSync == true && context.mounted) {
-                        await controller.healthConnectService.batchInsertBloodPressure(records);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Synced to Health Connect'))
-                        );
-                      }
-                    }
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: const Text("Load Data")),
-            ),
-            SizedBox(
-              height: 8,
-            ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: double.infinity),
-              child: FilledButton(
-                  style: FilledButton.styleFrom(
-                      backgroundColor: colorScheme.secondary),
-                  onPressed: controller.saveFile,
-                  child: const Text("Export Data")),
-            ),
-            Watch((context) {
-              final isConnected =
-                  controller.healthConnectService.isConnected.value;
-              final hasRecords = controller.recordsSignal.value.isNotEmpty;
-              if (isConnected && hasRecords) {
-                return Column(
+            const SizedBox(height: 16),
+            ShadCard(
+              title: const Text('Display Preferences'),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Expanded(
+                      child: Text(
+                        'Show lowest reading per day',
+                        style: theme.textTheme.p,
+                      ),
+                    ),
+                    ShadSwitch(
+                      value: controller.showLowestOnly,
+                      onChanged: controller.updateShowLowestOnly,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ShadCard(
+              title: const Text('Data Management'),
+              description: const Text('Import, export, or sync your blood pressure data'),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ShadButton.outline(
+                      leading: const Icon(LucideIcons.upload, size: 16),
+                      onPressed: () async {
+                        final records = await controller.loadFile();
+                        if (records != null && controller.healthConnectService.isConnected.value && context.mounted) {
+                          final shouldSync = await showShadDialog<bool>(
+                            context: context,
+                            builder: (context) => ShadDialog(
+                              title: const Text('Sync to Health Connect?'),
+                              description: Text('Do you want to sync ${records.length} records to Health Connect?'),
+                              actions: [
+                                ShadButton.outline(
+                                  child: const Text('No'),
+                                  onPressed: () => Navigator.pop(context, false),
+                                ),
+                                ShadButton(
+                                  child: const Text('Yes'),
+                                  onPressed: () => Navigator.pop(context, true),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (shouldSync == true && context.mounted) {
+                            await controller.healthConnectService.batchInsertBloodPressure(records);
+                            if (context.mounted) {
+                              ShadToaster.of(context).show(
+                                const ShadToast(
+                                  title: Text('Synced'),
+                                  description: Text('Records synced to Health Connect.'),
+                                ),
+                              );
+                            }
+                          }
+                        }
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text('Import CSV Data'),
+                    ),
                     const SizedBox(height: 8),
-                    ConstrainedBox(
-                        constraints:
-                            const BoxConstraints(minWidth: double.infinity),
-                        child: FilledButton(
-                            style: FilledButton.styleFrom(
-                                backgroundColor: colorScheme.tertiary),
+                    ShadButton.secondary(
+                      leading: const Icon(LucideIcons.download, size: 16),
+                      onPressed: controller.saveFile,
+                      child: const Text('Export CSV Data'),
+                    ),
+                    Watch((context) {
+                      final isConnected = controller.healthConnectService.isConnected.value;
+                      final hasRecords = controller.recordsSignal.value.isNotEmpty;
+                      if (isConnected && hasRecords) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: ShadButton(
+                            leading: const Icon(LucideIcons.refreshCw, size: 16),
                             onPressed: () async {
                               await controller.healthConnectService
-                                  .batchInsertBloodPressure(
-                                      controller.recordsSignal.value);
+                                  .batchInsertBloodPressure(controller.recordsSignal.value);
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'All records synced to Health Connect')));
+                                ShadToaster.of(context).show(
+                                  const ShadToast(
+                                    title: Text('Sync Complete'),
+                                    description: Text('All records synced to Health Connect.'),
+                                  ),
+                                );
                               }
                             },
-                            child: const Text("Sync All to Health Connect"))),
+                            child: const Text('Sync All to Health Connect'),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }),
+                    const SizedBox(height: 8),
+                    Watch((context) {
+                      final isConnected = controller.healthConnectService.isConnected.value;
+                      return ShadButton(
+                        leading: Icon(
+                          isConnected ? LucideIcons.checkCircle2 : LucideIcons.link,
+                          size: 16,
+                        ),
+                        backgroundColor: isConnected ? const Color(0xFF16A34A) : null,
+                        onPressed: () {
+                          controller.healthConnectService.requestPermissions();
+                        },
+                        child: Text(
+                          isConnected ? 'Connected to Health Connect' : 'Connect to Health Connect',
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    ShadButton.destructive(
+                      leading: const Icon(LucideIcons.trash2, size: 16),
+                      onPressed: () async {
+                        final confirm = await showShadDialog<bool>(
+                          context: context,
+                          builder: (context) => ShadDialog.alert(
+                            title: const Text('Clear All Data?'),
+                            description: const Text(
+                              'This will permanently delete all local blood pressure records. This action cannot be undone.',
+                            ),
+                            actions: [
+                              ShadButton.outline(
+                                child: const Text('Cancel'),
+                                onPressed: () => Navigator.pop(context, false),
+                              ),
+                              ShadButton.destructive(
+                                child: const Text('Delete All'),
+                                onPressed: () => Navigator.pop(context, true),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          controller.clearRecords();
+                        }
+                      },
+                      child: const Text('Clear All Local Data'),
+                    ),
                   ],
-                );
-              }
-              return const SizedBox.shrink();
-            }),
-            const SizedBox(
-              height: 8,
+                ),
+              ),
             ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: double.infinity),
-              child: Watch((context) {
-                final isConnected = controller.healthConnectService.isConnected.value;
-                return FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: isConnected ? Colors.green : colorScheme.primary,
-                  ),
-                  onPressed: () {
-                    controller.healthConnectService.requestPermissions();
-                  },
-                  child: Text(isConnected ? "Connected to Health Connect" : "Connect to Health Connect"),
-                );
-              }),
-            ),
-            const SizedBox(
-              height: 32,
-            ),
-            ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: double.infinity),
-                child: FilledButton(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: colorScheme.error),
-                    onPressed: () async {
-                      controller.clearRecords();
-                    },
-                    child: const Text("Clear Data")))
           ],
         ),
       ),

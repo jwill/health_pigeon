@@ -6,11 +6,7 @@ import 'package:health_pigeon_example/src/data/health_connect_service.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cross_file/cross_file.dart';
-import 'package:intl/intl.dart';
-import 'package:signals/signals.dart';
-import 'package:signals/signals_flutter.dart';
 import 'package:health_pigeon_example/src/settings/settings_service.dart';
-import 'package:csv/csv.dart';
 import 'dart:io' show File, Platform;
 
 /// A class that many Widgets can interact with to listen to user settings changes.

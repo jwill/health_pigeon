@@ -1,11 +1,10 @@
 import 'dart:io';
 
-import 'package:health_pigeon_example/src/data/bp_record.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:signals/signals_flutter.dart';
 
+import 'package:health_pigeon_example/src/data/bp_record.dart';
 import '../data/bp_record_signal.dart';
 import '../data/health_connect_service.dart';
 
@@ -25,197 +24,172 @@ class BloodPressureInputBottomSheet extends StatefulWidget {
 
 class _BloodPressureInputBottomSheetState
     extends State<BloodPressureInputBottomSheet> {
-  late TextEditingController _systolic_controller;
-  late TextEditingController _diatolic_controller;
-  late TextEditingController _notes_controller;
-  final concertOne = GoogleFonts.concertOne();
-  final corben = GoogleFonts.corben();
+  late TextEditingController _systolicController;
+  late TextEditingController _diastolicController;
+  late TextEditingController _notesController;
 
   @override
   void initState() {
     super.initState();
-    _systolic_controller =
+    _systolicController =
         TextEditingController(text: widget.systolic.value.toString());
-    _diatolic_controller =
+    _diastolicController =
         TextEditingController(text: widget.diastolic.value.toString());
-    _notes_controller =
+    _notesController =
         TextEditingController(text: widget.notes.value.toString());
   }
 
   @override
   void dispose() {
-    _systolic_controller.dispose();
-    _diatolic_controller.dispose();
-    _notes_controller.dispose();
+    _systolicController.dispose();
+    _diastolicController.dispose();
+    _notesController.dispose();
     super.dispose();
-  }
-
-  static int? argbFromHex(String hex) {
-    return int.tryParse(hex.replaceAll('#', ''), radix: 16);
   }
 
   void saveRecord() {
     final signal = SignalProvider.of<BPRecordSignal>(context);
-    print(widget.systolic.value);
-    var record = BPRecord(
-          date: widget.date.value,
-          systolic: int.parse(_systolic_controller.text),
-          diastolic: int.parse(_diatolic_controller.text),
-          notes: widget.notes.value);
+    final systolicVal = int.tryParse(_systolicController.text);
+    final diastolicVal = int.tryParse(_diastolicController.text);
+    if (systolicVal == null || diastolicVal == null) return;
 
-      // Use health connect if on Android
-      if (Platform.isAndroid) {
-        widget.healthConnectService.insertBloodPressure(record);
-      }
+    final record = BPRecord(
+      date: widget.date.value,
+      systolic: systolicVal,
+      diastolic: diastolicVal,
+      notes: _notesController.text,
+    );
 
-      final newList = [...signal!.value, record]..sort((a, b) {
-        return a.date.millisecondsSinceEpoch
-            .compareTo(b.date.millisecondsSinceEpoch);
-      });
-      signal.value = newList;
-
-      Navigator.pop(context, 'OK');
+    // Use health connect if on Android
+    if (Platform.isAndroid) {
+      widget.healthConnectService.insertBloodPressure(record);
     }
 
+    final newList = [...signal!.value, record]..sort((a, b) {
+      return a.date.millisecondsSinceEpoch
+          .compareTo(b.date.millisecondsSinceEpoch);
+    });
+    signal.value = newList;
 
-
+    Navigator.pop(context, 'OK');
+  }
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-              padding: EdgeInsets.only(left: 24, top: 40, bottom: 0),
-              child: Text(
-                "New Reading",
-                style: textTheme.headlineSmall
-                    ?.copyWith(fontFamily: corben.fontFamily),
-              )),
-          Column(
-            spacing: 4,
-            children: [
-              Padding(
-                  padding:
-                      EdgeInsets.only(left: 16, top: 16, bottom: 8, right: 16),
-                  child: TextField(
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Color(0xFFFFF0F0),
-                      border: InputBorder.none,
-                      labelText: "Top number (systolic)",
-                      labelStyle: concertOne,
-                    ),
-                    style: concertOne,
-                    controller: _systolic_controller,
-                    onChanged: (value) {
-                      widget.systolic.value = value;
-                    },
-                  )),
-              Padding(
-                  padding:
-                      EdgeInsets.only(left: 16, top: 0, bottom: 16, right: 16),
-                  child: TextField(
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Color(0xFFFFF0F0),
-                      border: InputBorder.none,
-                      labelText: "Bottom number (diastolic)",
-                      labelStyle: concertOne,
-                    ),
-                    style: concertOne,
-                    controller: _diatolic_controller,
-                    onChanged: (value) {
-                      widget.diastolic.value = value;
-                    },
-                  )),
-              // TextField(
-              //   controller: _notes_controller,
-              //   onChanged: (value) {
-              //     widget.notes.value = value;
-              //   },
-              // ),
-            ],
-          ),
-          Padding(padding: EdgeInsets.only(left:24.0, right: 24.0, top:12), child:
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Row(
-              spacing: 8,
-              children: [
-                Baseline(
-                  baseline: 32.0,
-                  baselineType: TextBaseline.ideographic,
-                  child:Icon(Icons.event)),
-  
-            Watch((context) {
-              var displayDate = widget.date.value;
-              final display = DateFormat.yMd().format(displayDate);
-              return Text(
-                display,
-                style: concertOne.copyWith(fontSize: textTheme.titleLarge?.fontSize),
-              );
-            }),
-            ],),
-  
-            const SizedBox(
-              width: 8,
+    final theme = ShadTheme.of(context);
+    return ShadSheet(
+      title: const Text('New Reading'),
+      description: const Text('Record your systolic and diastolic measurements'),
+      actions: [
+        ShadButton.outline(
+          onPressed: () => Navigator.pop(context, 'Cancel'),
+          child: const Text('Cancel'),
+        ),
+        ShadButton(
+          onPressed: saveRecord,
+          child: const Text('Add Reading'),
+        ),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Systolic (mmHg)', style: theme.textTheme.small),
+            const SizedBox(height: 4),
+            ShadInput(
+              controller: _systolicController,
+              keyboardType: TextInputType.number,
+              placeholder: const Text('Top number (e.g. 120)'),
+              onChanged: (value) => widget.systolic.value = value,
             ),
-            IconButton.filled(
-              onPressed: () async {
-                showDatePicker(
-                        context: context,
-                        firstDate: DateTime.now().subtract(Duration(days: 365)),
-                        lastDate: DateTime.now(),
-                        currentDate: DateTime.now())
-                    .then((value) => widget.date.value = value!);
-              },
-              icon: Icon(Icons.edit),
-            )
-          ])),
-  
-          Padding(padding: EdgeInsets.only(left:24, right: 24.0, top:12),  child:
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Row(spacing: 8,
-            children: [
-            Baseline(
-                baseline: 32.0,
-                baselineType: TextBaseline.ideographic,
-                child:Icon(Icons.schedule)),
-            Watch((context) {
-              var displayTime = widget.date.value;
-              final display = DateFormat.Hm().format(displayTime);
-              return Text(
-                display,
-                style: concertOne.copyWith(fontSize: textTheme.titleLarge?.fontSize),
-              );
-            })]),
-            const SizedBox(
-              width: 8,
+            const SizedBox(height: 12),
+            Text('Diastolic (mmHg)', style: theme.textTheme.small),
+            const SizedBox(height: 4),
+            ShadInput(
+              controller: _diastolicController,
+              keyboardType: TextInputType.number,
+              placeholder: const Text('Bottom number (e.g. 80)'),
+              onChanged: (value) => widget.diastolic.value = value,
             ),
-            IconButton.filled(
-              onPressed: () async {
-                showTimePicker(
-                  context: context,
-                  initialTime: TimeOfDay.now(),
-                ).then((value) {
-                  widget.date.value = widget.date.value
-                      .copyWith(hour: value?.hour, minute: value?.minute);
-                });
-              },
-              icon: Icon(Icons.edit),
-            )
-          ]),
+            const SizedBox(height: 12),
+            Text('Notes (optional)', style: theme.textTheme.small),
+            const SizedBox(height: 4),
+            ShadInput(
+              controller: _notesController,
+              placeholder: const Text('Optional note...'),
+              onChanged: (value) => widget.notes.value = value,
             ),
-          Padding(padding: EdgeInsets.only(right:24, top:64, bottom: 24), child:Row(spacing: 16, mainAxisAlignment: MainAxisAlignment.end, children: [
-            TextButton(onPressed: (){Navigator.pop(context, 'Cancel');}, child: Text("Cancel")),
-            FilledButton(onPressed: (){saveRecord();}, child: Text("Add"))
-          ],))
-        ],
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                border: Border.all(color: theme.colorScheme.border),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.calendar, size: 18),
+                      const SizedBox(width: 8),
+                      Watch((context) => Text(
+                        DateFormat.yMMMd().format(widget.date.value),
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      )),
+                      const Spacer(),
+                      ShadButton.outline(
+                        size: ShadButtonSize.sm,
+                        leading: const Icon(LucideIcons.edit2, size: 14),
+                        onPressed: () async {
+                          final val = await showDatePicker(
+                            context: context,
+                            initialDate: widget.date.value,
+                            firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                            lastDate: DateTime.now(),
+                          );
+                          if (val != null) widget.date.value = val;
+                        },
+                        child: const Text('Change'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.clock, size: 18),
+                      const SizedBox(width: 8),
+                      Watch((context) => Text(
+                        DateFormat.jm().format(widget.date.value),
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      )),
+                      const Spacer(),
+                      ShadButton.outline(
+                        size: ShadButtonSize.sm,
+                        leading: const Icon(LucideIcons.edit2, size: 14),
+                        onPressed: () async {
+                          final val = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.fromDateTime(widget.date.value),
+                          );
+                          if (val != null) {
+                            widget.date.value = widget.date.value.copyWith(
+                              hour: val.hour,
+                              minute: val.minute,
+                            );
+                          }
+                        },
+                        child: const Text('Change'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

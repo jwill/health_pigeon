@@ -1,10 +1,11 @@
-import 'package:health_pigeon_example/src/data/bp_record.dart';
 import 'package:flutter/material.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:signals/signals_flutter.dart';
 
+import 'package:health_pigeon_example/src/data/bp_record.dart';
 import '../data/bp_record_signal.dart';
 
-/// Displays detailed information about a SampleItem.
+/// Displays detailed information about a blood pressure reading.
 class BloodPressureItemDetailsView extends StatelessWidget {
   const BloodPressureItemDetailsView({super.key});
 
@@ -12,62 +13,69 @@ class BloodPressureItemDetailsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final record = ModalRoute.of(context)?.settings.arguments as Map;
+    final theme = ShadTheme.of(context);
+    final record = ModalRoute.of(context)?.settings.arguments as Map<String, String>?;
     final signal = SignalProvider.of<BPRecordSignal>(context)!;
 
-    print(record);
+    if (record == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Item Details')),
+        body: const Center(child: Text('Record not found')),
+      );
+    }
+
+    DateTime? parsedDate;
+    try {
+      parsedDate = DateTime.parse(record['date'] ?? '');
+    } catch (_) {}
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Item Details'),
+        title: Text('Reading Details', style: theme.textTheme.h4),
       ),
-      body: Center(
-          child: Padding(
-        padding: EdgeInsets.all(16.0),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Row(
-              children: [Text("Date"), Spacer(), Text(record['date'])],
+            ShadCard(
+              title: Text(
+                '${record['systolic']} / ${record['diastolic']} mmHg',
+                style: theme.textTheme.h2,
+              ),
+              description: Text(
+                parsedDate != null
+                    ? DateFormat.yMMMd().add_jm().format(parsedDate)
+                    : (record['date'] ?? ''),
+              ),
+              child: record['notes']?.isNotEmpty == true
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Note: ${record['notes']}',
+                        style: theme.textTheme.muted,
+                      ),
+                    )
+                  : null,
             ),
-            Row(
-              children: [Text("Systolic"), Spacer(), Text(record['systolic'])],
-            ),
-            Row(
-              children: [
-                Text("Diastolic"),
-                Spacer(),
-                Text(record['diastolic'])
-              ],
-            ),
+            const SizedBox(height: 24),
             SizedBox(
-              height: 8,
-            ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: double.infinity),
-              child: FilledButton(
-                  onPressed: () {}, child: const Text("Edit Item")),
-            ),
-            SizedBox(
-              height: 8,
-            ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: double.infinity),
-              child: FilledButton(
-                  style: FilledButton.styleFrom(
-                      backgroundColor: colorScheme.error),
-                  onPressed: () {
-                    signal.value.removeWhere((BPRecord elem) =>
-                      elem.date == DateTime.parse(record["date"])
-                    );
+              width: double.infinity,
+              child: ShadButton.destructive(
+                leading: const Icon(LucideIcons.trash2, size: 16),
+                onPressed: () {
+                  if (parsedDate != null) {
+                    signal.value.removeWhere((BPRecord elem) => elem.date == parsedDate);
                     signal.save(signal.value);
                     signal.set(signal.value, force: true);
-                    Navigator.pop(context);
-                  },
-                  child: const Text("Delete Item")),
+                  }
+                  Navigator.pop(context);
+                },
+                child: const Text('Delete Reading'),
+              ),
             ),
           ],
         ),
-      )),
+      ),
     );
   }
 }

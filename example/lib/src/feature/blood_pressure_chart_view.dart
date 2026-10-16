@@ -1,3 +1,4 @@
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:health_pigeon_example/src/data/bp_record.dart';
 import 'package:health_pigeon_example/src/data/bp_record_signal.dart';
 import 'package:health_pigeon_example/src/settings/settings_controller.dart';
@@ -21,17 +22,31 @@ class BloodPressureChartView extends StatelessWidget {
     WidgetsToImageController controller = WidgetsToImageController();
 
     var items = signal.value; //box.getValues();
-    print(items.toList());
 
-    return Scaffold(
-      body: WidgetsToImage(
-          controller: controller, child: _buildChart(context, items.toList())),
-      floatingActionButton: FloatingActionButton(
-          onPressed: () async {
-            var bytes = await controller.capture();
-            SettingsController.saveImage(bytes!);
-          },
-          child: const Icon(Icons.photo)),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: WidgetsToImage(
+            controller: controller,
+            child: _buildChart(context, items.toList()),
+          ),
+        ),
+        Positioned(
+          right: 0,
+          bottom: 16,
+          child: FloatingActionButton(
+            heroTag: 'export_chart_fab',
+            onPressed: () async {
+              var bytes = await controller.capture();
+              if (bytes != null) {
+                SettingsController.saveImage(bytes);
+              }
+            },
+            tooltip: 'Export Chart',
+            child: const Icon(LucideIcons.camera),
+          ),
+        ),
+      ],
     );
   }
 
@@ -42,8 +57,9 @@ class BloodPressureChartView extends StatelessWidget {
       return Colors.yellow;
     } else if (record.systolic >= 140 || record.diastolic >= 90) {
       return Colors.red;
-    } else
+    } else {
       return Colors.orange;
+    }
   }
 
   Widget _buildChart(BuildContext context, List items) {
@@ -53,15 +69,6 @@ class BloodPressureChartView extends StatelessWidget {
         .toList();
     List<TimeData> diastolic = items
         .map((e) => TimeData(domain: e.date, measure: e.diastolic))
-        .toList();
-
-    List<TimeData> baselineDiastolic = BPRecord.generateBaseline(items.length,
-            BPRecord(date: DateTime.now(), systolic: 120, diastolic: 80))
-        .map((e) => TimeData(domain: e.date, measure: e.diastolic))
-        .toList();
-    List<TimeData> baselineSystolic = BPRecord.generateBaseline(items.length,
-            BPRecord(date: DateTime.now(), systolic: 120, diastolic: 80))
-        .map((e) => TimeData(domain: e.date, measure: e.systolic))
         .toList();
 
     final timeGroupList = [

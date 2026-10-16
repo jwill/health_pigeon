@@ -1,18 +1,13 @@
-import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:signals/signals_flutter.dart';
 
 import 'package:health_pigeon_example/src/data/bp_record.dart';
 import 'package:health_pigeon_example/src/data/bp_record_signal.dart';
-import 'package:health_pigeon_example/src/feature/blood_pressure_input_bottom_sheet.dart';
 import 'package:health_pigeon_example/src/feature/blood_pressure_item_details_view.dart';
 import 'package:health_pigeon_example/src/settings/settings_controller.dart';
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import 'package:intl/intl.dart';
-import 'package:jni/jni.dart';
-import 'package:signals/signals_flutter.dart';
-
-/// Displays a list of SampleItems.
+/// Displays a list of blood pressure readings.
 class BloodPressureListView extends StatefulWidget {
   const BloodPressureListView({
     super.key,
@@ -30,129 +25,115 @@ class BloodPressureListView extends StatefulWidget {
 class _BloodPressureListViewState extends State<BloodPressureListView> {
   @override
   Widget build(BuildContext context) {
-    final surfaceContainerHighest = Color(0xFFf7dcdd);
-    return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _syncWithHealthConnect,
-        child: _buildList(context),
-      ),
-      floatingActionButton: FloatingActionButton(
-          onPressed: () => {
-            showModalBottomSheet<void>(context: context,
-                backgroundColor: surfaceContainerHighest,
-                builder: (BuildContext context) {
-                  return BloodPressureInputBottomSheet(healthConnectService: widget.controller.healthConnectService);
-                })
-             /* _dialogBuilder(context)*/},
-          child: const Icon(Icons.add)),
+    return RefreshIndicator(
+      onRefresh: _syncWithHealthConnect,
+      child: _buildList(context),
     );
   }
 
-  Color pickColorForBP(BPRecord record) {
-    if (record.systolic <= 120 && record.diastolic <= 80) {
-      return Color(0xFF008652);
-    } else if (record.systolic <= 130 && record.diastolic <= 85) {
-      return Color(0xFFF0DC17);
-    } else if (record.systolic >= 140 || record.diastolic >= 90) {
-      return Colors.red;
+  Widget _buildCategoryBadge(BPRecord record) {
+    if (record.systolic < 120 && record.diastolic < 80) {
+      return const ShadBadge(
+        child: Text('Normal'),
+      );
+    } else if (record.systolic <= 129 && record.diastolic < 80) {
+      return const ShadBadge.secondary(
+        child: Text('Elevated'),
+      );
+    } else if (record.systolic <= 139 || record.diastolic <= 89) {
+      return const ShadBadge.outline(
+        child: Text('Stage 1'),
+      );
     } else {
-      return Colors.orange;
-    }
-  }
-
-  Color pickColorForBPText(BPRecord record) {
-    if (record.systolic <= 120 && record.diastolic <= 80) {
-      return Color(0xFFF6FFF5);
-    } else if (record.systolic <= 130 && record.diastolic <= 85) {
-      return Color(0xFF696000);
-    } else if (record.systolic >= 140 || record.diastolic >= 90) {
-      return Colors.black;
-    } else {
-      return Color(0xFF302202);
+      return const ShadBadge.destructive(
+        child: Text('Stage 2'),
+      );
     }
   }
 
   Widget _buildItem(BuildContext context, BPRecord item) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final notoSans = GoogleFonts.notoSans();
-    final neutral70 = Color(0xFFB4A9A8);
-    final data = item.notes.isNotEmpty
-        ? "${item.systolic}/${item.diastolic} - ${item.notes}"
-        : "${item.systolic}/${item.diastolic}";
-    return GestureDetector(
+    final theme = ShadTheme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: GestureDetector(
         onTap: () {
           Navigator.restorablePushNamed(
-              context, BloodPressureItemDetailsView.routeName,
-              arguments: <String, String>{
-                'date': item.date.toString(),
-                'systolic': item.systolic.toString(),
-                'diastolic': item.diastolic.toString(),
-                'notes': item.notes,
-              });
+            context,
+            BloodPressureItemDetailsView.routeName,
+            arguments: <String, String>{
+              'date': item.date.toString(),
+              'systolic': item.systolic.toString(),
+              'diastolic': item.diastolic.toString(),
+              'notes': item.notes,
+            },
+          );
         },
-        child: Card(
-            color: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(40),
-                    bottomLeft: Radius.circular(40),
-                    topRight: Radius.circular(24),
-                    bottomRight: Radius.circular(24))),
-            child: Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Row(
+        child: ShadCard(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: 8,
-                      height: 8,
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.schedule, size: 16, color: neutral70,),
-                            SizedBox(width:4),
-                            Text(DateFormat('hh:mm aaa').format(item.date), style: notoSans.copyWith(color: neutral70, fontSize: 12),)
-                          ],
+                        Text(
+                          '${item.systolic} / ${item.diastolic}',
+                          style: theme.textTheme.h3.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        SizedBox(
-                          height: 4,
+                        const SizedBox(width: 6),
+                        Text(
+                          'mmHg',
+                          style: theme.textTheme.muted.copyWith(fontSize: 12),
                         ),
-                        Row(
-                          children: [
-                            Icon(Icons.event, size: 16, color: neutral70,),
-                            SizedBox(width:4),
-                            Text(DateFormat('dd MMM').format(item.date), style: notoSans.copyWith(color: neutral70, fontSize: 12),)
-                          ],
-                        )
+                        const Spacer(),
+                        _buildCategoryBadge(item),
                       ],
                     ),
-                    SizedBox(
-                      width: 16,
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(LucideIcons.calendar, size: 14, color: theme.colorScheme.mutedForeground),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateFormat.yMMMd().format(item.date),
+                          style: theme.textTheme.muted.copyWith(fontSize: 12),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(LucideIcons.clock, size: 14, color: theme.colorScheme.mutedForeground),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateFormat.jm().format(item.date),
+                          style: theme.textTheme.muted.copyWith(fontSize: 12),
+                        ),
+                      ],
                     ),
-                    Container(
-                        alignment: Alignment.center,
-                        height: 56,
-                        width: 284,
-                        decoration: BoxDecoration(
-                            color: pickColorForBP(item),
-                            borderRadius:
-                                BorderRadius.all(Radius.circular(24))),
-                        child: Baseline(
-                          baseline: 24,
-                          baselineType: TextBaseline.alphabetic,
-                          child: Text(
-                            "${item.systolic} / ${item.diastolic}",
-                            style: GoogleFonts.concertOne().copyWith(
-                              color: pickColorForBPText(item),
-                                fontSize: textTheme.titleLarge?.fontSize),
-                          ),
-                        )),
+                    if (item.notes.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        item.notes,
+                        style: theme.textTheme.small.copyWith(
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
                   ],
-                ))));
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                LucideIcons.chevronRight,
+                size: 16,
+                color: theme.colorScheme.mutedForeground,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildList(BuildContext context) {
@@ -168,10 +149,10 @@ class _BloodPressureListViewState extends State<BloodPressureListView> {
           if (widget.controller.showLowestOnly) {
             // Group by day and find lowest systolic
             final Map<String, BPRecord> lowestPerDay = {};
-            
+
             for (var record in allRecords) {
               final dateKey = DateFormat('yyyy-MM-dd').format(record.date);
-              if (!lowestPerDay.containsKey(dateKey) || 
+              if (!lowestPerDay.containsKey(dateKey) ||
                   record.systolic < lowestPerDay[dateKey]!.systolic) {
                 lowestPerDay[dateKey] = record;
               }
@@ -182,9 +163,38 @@ class _BloodPressureListViewState extends State<BloodPressureListView> {
             displayRecords = allRecords;
           }
 
+          if (displayRecords.isEmpty) {
+            return LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.activity,
+                          size: 48,
+                          color: ShadTheme.of(context).colorScheme.mutedForeground,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No blood pressure records yet',
+                          style: ShadTheme.of(context).textTheme.muted,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
           return ListView.builder(
             restorationId: 'bloodPressureItemListView',
             itemCount: displayRecords.length,
+            padding: const EdgeInsets.only(top: 12, bottom: 80),
             itemBuilder: (BuildContext context, int index) {
               final item = displayRecords[index];
               return _buildItem(context, item);
@@ -195,13 +205,15 @@ class _BloodPressureListViewState extends State<BloodPressureListView> {
     );
   }
 
-
   Future<void> _syncWithHealthConnect() async {
     final service = widget.controller.healthConnectService;
     if (!service.isConnected.value) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Health Connect is not connected')),
+        ShadToaster.of(context).show(
+          const ShadToast.destructive(
+            title: Text('Health Connect'),
+            description: Text('Health Connect is not connected.'),
+          ),
         );
       }
       return;
@@ -209,18 +221,17 @@ class _BloodPressureListViewState extends State<BloodPressureListView> {
 
     final now = DateTime.now();
     final thirtyDaysAgo = now.subtract(const Duration(days: 30));
-    
+    final signal = SignalProvider.of<BPRecordSignal>(context, listen: false)!;
+
     final records = await service.readBloodPressure(thirtyDaysAgo, now);
-    
+
     if (records.isNotEmpty) {
-      final signal = SignalProvider.of<BPRecordSignal>(context, listen: false)!;
       final currentRecords = signal.value;
-      
-      // Merge unique records
+
       final Map<DateTime, BPRecord> recordMap = {
-        for (var r in currentRecords) r.date: r
+        for (var r in currentRecords) r.date: r,
       };
-      
+
       int addedCount = 0;
       for (var record in records) {
         if (!recordMap.containsKey(record.date)) {
@@ -228,28 +239,37 @@ class _BloodPressureListViewState extends State<BloodPressureListView> {
           addedCount++;
         }
       }
-      
+
       if (addedCount > 0) {
         final newList = recordMap.values.toList()
           ..sort((a, b) => a.date.compareTo(b.date));
         signal.value = newList;
-        
+
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Synced $addedCount new records from Health Connect')),
+          ShadToaster.of(context).show(
+            ShadToast(
+              title: const Text('Sync Complete'),
+              description: Text('Synced $addedCount new records from Health Connect.'),
+            ),
           );
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No new records found in Health Connect')),
+          ShadToaster.of(context).show(
+            ShadToast(
+              title: const Text('Sync Complete'),
+              description: const Text('No new records found in Health Connect.'),
+            ),
           );
         }
       }
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No records found in Health Connect for the last 30 days')),
+        ShadToaster.of(context).show(
+          ShadToast(
+            title: const Text('Health Connect'),
+            description: const Text('No records found in Health Connect for the last 30 days.'),
+          ),
         );
       }
     }

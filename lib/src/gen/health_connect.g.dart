@@ -4,12 +4,16 @@
 // ignore_for_file: type=lint
 
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:io' show Platform;
 import 'dart:typed_data' show Float32List, Float64List, Int32List, Int64List, Int8List, TypedData;
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/services.dart';
 import 'package:jni/jni.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
+import 'package:objective_c/objective_c.dart';
+import './health_connect.g.ffi.dart' as ffi_bridge;
 import './health_connect.g.jni.dart' as jni_bridge;
 
 Object? _extractReplyValueOrThrow(
@@ -228,6 +232,225 @@ class _PigeonJniCodec {
   }
 }
     
+
+class _PigeonFfiCodec {
+  static Object? readValue(ObjCObject? value, [Type? type, Type? type2]) {
+    if (value == null || ffi_bridge.HealthPigeonPigeonInternalNull.isA(value)) {
+      return null;
+    } else if (NSNumber.isA(value)) {
+      final NSNumber numValue = NSNumber.as(value);
+      if (type == double) {
+        return numValue.doubleValue;
+      } else if (type == bool) {
+        return numValue.boolValue;
+      }
+      
+
+      return numValue.longValue;
+    } else if (NSString.isA(value)) {
+      return NSString.as(value).toDartString();
+    } else if (ffi_bridge.HealthPigeonPigeonTypedData.isA(value)) {
+      return _getValueFromPigeonTypedData(value as ffi_bridge.HealthPigeonPigeonTypedData);
+    } else if (NSArray.isA(value)) {
+      final NSArray array = NSArray.as(value);
+      final List<Object?> res = <Object?>[];
+      for (int i = 0; i < array.count; i++) {
+        res.add(readValue(array.objectAtIndex(i), type));
+      }
+      return res;
+    } else if (NSDictionary.isA(value)) {
+      final NSDictionary dict = NSDictionary.as(value);
+      final NSArray keys = dict.allKeys;
+      final Map<Object?, Object?> res = <Object?, Object?>{};
+      for (int i = 0; i < keys.count; i++) {
+        final ObjCObject key = keys.objectAtIndex(i);
+        res[readValue(key, type, type2)] = readValue(dict.objectForKey(key), type, type2);
+      }
+      return res;
+    } else if (ffi_bridge.HealthPigeonNumberWrapper.isA(value)) {
+      return _convertNumberWrapperToDart(ffi_bridge.HealthPigeonNumberWrapper.as(value));
+          } else if (ffi_bridge.BloodPressureRecordPigeonBridge.isA(value)) {
+        return BloodPressureRecordPigeon.fromFfi(ffi_bridge.BloodPressureRecordPigeonBridge.as(value));
+        
+    } else {
+    throw ArgumentError.value(value);
+    }
+  }
+
+  static T writeValue<T extends ObjCObject?>(
+    Object? value, {
+    bool generic = false,
+  }) {
+    if (value == null) {
+      if (_isTypeOrNullableType<T>(ObjCObject) || _isTypeOrNullableType<T>(NSObject)) {
+        return ffi_bridge.HealthPigeonPigeonInternalNull() as T;
+      }
+      return null as T;
+    }
+    if (value is bool) {
+      return (generic
+          ? _convertToFfiNumberWrapper(value)
+          : NSNumber.alloc().initWithLong(value ? 1 : 0)) as T;
+    } else if (value is double) {
+      return (generic
+          ? _convertToFfiNumberWrapper(value)
+          : NSNumber.alloc().initWithDouble(value)) as T;
+      // ignore: avoid_double_and_int_checks
+    } else if (value is int) {
+      return (generic
+          ? _convertToFfiNumberWrapper(value)
+          : NSNumber.alloc().initWithLong(value)) as T;
+    } else if (value is Enum) {
+      return (generic
+          ? _convertToFfiNumberWrapper(value)
+          : NSNumber.alloc().initWithLong(value.index)) as T;
+    } else if (value is String) {
+      return NSString(value) as T;
+    } else if (value is TypedData) {
+      return _toPigeonTypedData(value) as T;
+        } else if (value is List<BloodPressureRecordPigeon> && _isTypeOrNullableType<NSMutableArray>(T)) {
+      final NSMutableArray res = NSMutableArray();
+      for (final BloodPressureRecordPigeon entry in value) {
+        res.addObject(writeValue<ffi_bridge.BloodPressureRecordPigeonBridge>(entry, generic: true));
+      }
+      return res as T;
+        
+    } else if (value is List) {
+      final NSMutableArray res = NSMutableArray();
+      for (final Object? entry in value) {
+        res.addObject(entry == null
+            ? ffi_bridge.HealthPigeonPigeonInternalNull()
+            : writeValue(entry, generic: true));
+      }
+      return res as T;
+    
+    } else if (value is Map) {
+      final NSMutableDictionary res = NSMutableDictionary();
+      for (final MapEntry<Object?, Object?> entry in value.entries) {
+        res.setObject(writeValue(entry.value, generic: true), forKey: NSCopying.as(writeValue(entry.key, generic: true)));
+      }
+      return res as T;
+          } else if (value is BloodPressureRecordPigeon) {
+        return value.toFfi() as T;
+        
+    } else {
+    throw ArgumentError.value(value);
+    }
+  }
+}
+
+ffi_bridge.HealthPigeonPigeonTypedData _toPigeonTypedData(TypedData value) {
+  final int lengthInBytes = value.lengthInBytes;
+  if (value is Uint8List) {
+    final int length = value.length;
+    final Pointer<Uint8> ptr = calloc<Uint8>(length);
+    ptr.asTypedList(length).setAll(0, value);
+    final NSData nsData =
+        NSData.dataWithBytes(ptr.cast<Void>(), length: lengthInBytes);
+    calloc.free(ptr);
+    return ffi_bridge.HealthPigeonPigeonTypedData.alloc().initWithData(nsData, type: 0);
+  } else if (value is Int32List) {
+    final int length = value.length;
+    final Pointer<Int32> ptr = calloc<Int32>(length);
+    ptr.asTypedList(length).setAll(0, value);
+    final NSData nsData =
+        NSData.dataWithBytes(ptr.cast<Void>(), length: lengthInBytes);
+    calloc.free(ptr);
+    return ffi_bridge.HealthPigeonPigeonTypedData.alloc().initWithData(nsData, type: 1);
+  } else if (value is Int64List) {
+    final int length = value.length;
+    final Pointer<Int64> ptr = calloc<Int64>(length);
+    ptr.asTypedList(length).setAll(0, value);
+    final NSData nsData =
+        NSData.dataWithBytes(ptr.cast<Void>(), length: lengthInBytes);
+    calloc.free(ptr);
+    return ffi_bridge.HealthPigeonPigeonTypedData.alloc().initWithData(nsData, type: 2);
+  } else if (value is Float32List) {
+    final int length = value.length;
+    final Pointer<Float> ptr = calloc<Float>(length);
+    ptr.asTypedList(length).setAll(0, value);
+    final NSData nsData =
+        NSData.dataWithBytes(ptr.cast<Void>(), length: lengthInBytes);
+    calloc.free(ptr);
+    return ffi_bridge.HealthPigeonPigeonTypedData.alloc().initWithData(nsData, type: 3);
+  } else if (value is Float64List) {
+    final int length = value.length;
+    final Pointer<Double> ptr = calloc<Double>(length);
+    ptr.asTypedList(length).setAll(0, value);
+    final NSData nsData =
+        NSData.dataWithBytes(ptr.cast<Void>(), length: lengthInBytes);
+    calloc.free(ptr);
+    return ffi_bridge.HealthPigeonPigeonTypedData.alloc().initWithData(nsData, type: 4);
+  }
+  throw ArgumentError.value(value);
+}
+
+
+
+Object? _getValueFromPigeonTypedData(ffi_bridge.HealthPigeonPigeonTypedData value) {
+  final NSData data = value.data;
+  final ObjCObjectRef dataRef = data.object$.ref;
+  try {
+    final int lengthInBytes = data.length;
+    if (lengthInBytes == 0) {
+      return switch (value.type) {
+        0 => Uint8List(0),
+        1 => Int32List(0),
+        2 => Int64List(0),
+        3 => Float32List(0),
+        4 => Float64List(0),
+        _ => throw ArgumentError.value(value),
+      };
+    }
+    final Pointer<Void> bytes = data.bytes;
+    return switch (value.type) {
+      0 => Uint8List.fromList(bytes.cast<Uint8>().asTypedList(lengthInBytes)),
+      1 => Int32List.fromList(
+        bytes.cast<Int32>().asTypedList(lengthInBytes ~/ 4),
+      ),
+      2 => Int64List.fromList(
+        bytes.cast<Int64>().asTypedList(lengthInBytes ~/ 8),
+      ),
+      3 => Float32List.fromList(
+        bytes.cast<Float>().asTypedList(lengthInBytes ~/ 4),
+      ),
+      4 => Float64List.fromList(
+        bytes.cast<Double>().asTypedList(lengthInBytes ~/ 8),
+      ),
+      _ => throw ArgumentError.value(value),
+    };
+  } finally {
+    dataRef.release();
+  }
+}
+    
+
+Object? _convertNumberWrapperToDart(ffi_bridge.HealthPigeonNumberWrapper value) {
+  switch (value.type) {
+    case 1:
+      return value.number.longValue;
+    case 2:
+      return value.number.doubleValue;
+    case 3:
+      return value.number.boolValue;
+    default:
+      throw ArgumentError.value(value);
+  }
+}
+
+ffi_bridge.HealthPigeonNumberWrapper _convertToFfiNumberWrapper(Object value) {
+  switch (value) {
+    case int _:
+      return ffi_bridge.HealthPigeonNumberWrapper.alloc().initWithNumber(NSNumber.alloc().initWithLong(value), type: 1);
+    case double _:
+      return ffi_bridge.HealthPigeonNumberWrapper.alloc().initWithNumber(NSNumber.alloc().initWithDouble(value), type: 2);
+    case bool _:
+      return ffi_bridge.HealthPigeonNumberWrapper.alloc().initWithNumber(NSNumber.alloc().initWithLong(value ? 1 : 0), type: 3);
+    default:
+      throw ArgumentError.value(value);
+  }
+}
+
 bool _isType<T>(Type t) => T == t;
 bool _isTypeOrNullableType<T>(Type t) => _isType<T>(t) || _isType<T?>(t);
 
@@ -238,6 +461,33 @@ void _throwNoInstanceError(String channelName) {
   }
   final String error = 'No instance $nameString has been registered.';
   throw ArgumentError(error);
+}
+
+void _throwIfFfiError(ffi_bridge.PigeonError error) {
+  if (error.code != null) {
+    throw _wrapFfiError(error);
+  }
+}
+
+PlatformException _wrapFfiError(ffi_bridge.PigeonError error) =>
+    PlatformException(
+      code: error.code!.toDartString(),
+      message: error.message?.toDartString(),
+      details: NSString.isA(error.details)
+          ? error.details!.toDartString()
+          : error.details,
+    );
+
+void _reportFfiError(ffi_bridge.PigeonError errorOut, Object e) {
+  if (e is PlatformException) {
+    errorOut.code = NSString(e.code);
+    errorOut.message = NSString(e.message ?? '');
+    errorOut.details = NSString((e.details ?? '').toString());
+  } else {
+    errorOut.code = NSString('error');
+    errorOut.message = NSString(e.toString());
+    errorOut.details = null;
+  }
 }
 
 PlatformException _wrapJniException(JThrowable e) {
@@ -296,6 +546,15 @@ class BloodPressureRecordPigeon {
     );
   }
 
+  ffi_bridge.BloodPressureRecordPigeonBridge toFfi() {
+    return ffi_bridge.BloodPressureRecordPigeonBridge.alloc().initWithSystolic(
+      systolic,
+      diastolic: diastolic,
+      dateMillis: dateMillis,
+      notes: _PigeonFfiCodec.writeValue<NSString?>(notes),
+    );
+  }
+
   Object encode() {
     return _toList();  }
 
@@ -305,6 +564,15 @@ class BloodPressureRecordPigeon {
       diastolic: jniClass.diastolic,
       dateMillis: jniClass.dateMillis,
       notes: jniClass.notes?.toDartString(releaseOriginal: true),
+    );
+  }
+
+  static BloodPressureRecordPigeon? fromFfi(ffi_bridge.BloodPressureRecordPigeonBridge? ffiClass) {
+    return ffiClass == null ? null : BloodPressureRecordPigeon(
+      systolic: ffiClass.systolic,
+      diastolic: ffiClass.diastolic,
+      dateMillis: ffiClass.dateMillis,
+      notes: ffiClass.notes?.toDartString(),
     );
   }
 
@@ -369,7 +637,7 @@ class _PigeonCodec extends StandardMessageCodec {
 const String defaultInstanceName = 'PigeonDefaultClassName32uh4ui3lh445uh4h3l2l455g4y34u';
 
 class HealthConnectApiForNativeInterop {
-  HealthConnectApiForNativeInterop._withRegistrar({jni_bridge.HealthConnectApiRegistrar? jniApi}) : _jniApi = jniApi;
+  HealthConnectApiForNativeInterop._withRegistrar({jni_bridge.HealthConnectApiRegistrar? jniApi, ffi_bridge.HealthConnectApiSetup? ffiApi}) : _jniApi = jniApi, _ffiApi = ffiApi;
 
   /// Returns instance of HealthConnectApiForNativeInterop with specified [channelName] if one has been registered.
   static HealthConnectApiForNativeInterop? getInstance({String channelName = defaultInstanceName}) {
@@ -381,6 +649,13 @@ class HealthConnectApiForNativeInterop {
         _throwNoInstanceError(channelName);
       }
       res = HealthConnectApiForNativeInterop._withRegistrar(jniApi: link);
+    } else if (Platform.isIOS || Platform.isMacOS) {
+      final ffi_bridge.HealthConnectApiSetup? link =
+          ffi_bridge.HealthConnectApiSetup.getInstanceWithName(NSString(channelName));
+      if (link == null) {
+        _throwNoInstanceError(channelName);
+      }
+      res = HealthConnectApiForNativeInterop._withRegistrar(ffiApi: link);
     } else {
       throw UnsupportedError('Native Interop is not supported on this platform. Use HealthConnectApi instead.');
     }
@@ -388,6 +663,7 @@ class HealthConnectApiForNativeInterop {
   }
 
   late final jni_bridge.HealthConnectApiRegistrar? _jniApi;
+  late final ffi_bridge.HealthConnectApiSetup? _ffiApi;
 
   Future<bool> hasPermissions() async {
     try {
@@ -395,6 +671,23 @@ class HealthConnectApiForNativeInterop {
         final JBoolean pigeonVar_res = await _jniApi.hasPermissions();
         final bool pigeonVar_dartTypeRes = pigeonVar_res.toDartBool(releaseOriginal: true);
         return pigeonVar_dartTypeRes;
+      } else if (_ffiApi != null) {
+        final pigeonVar_error = ffi_bridge.PigeonError();
+        final Completer<bool> pigeonVar_completer = Completer<bool>();
+        _ffiApi.hasPermissionsWithWrappedError(
+          pigeonVar_error,
+          completionHandler: ffi_bridge.ObjCBlock_ffiVoid_NSNumber.listener(
+            (NSNumber? pigeonVar_res) {
+              if (pigeonVar_error.code != null) {
+                pigeonVar_completer.completeError(_wrapFfiError(pigeonVar_error));
+              } else {
+                pigeonVar_completer.complete(pigeonVar_res!.boolValue);
+              }
+            },
+          ),
+        );
+        return await pigeonVar_completer.future;
+
       } else {
         throw Exception('No JNI or FFI api available');
       }
@@ -407,6 +700,23 @@ class HealthConnectApiForNativeInterop {
     try {
       if (_jniApi != null) {
         await _jniApi.requestPermissions();
+      } else if (_ffiApi != null) {
+        final pigeonVar_error = ffi_bridge.PigeonError();
+        final Completer<void> pigeonVar_completer = Completer<void>();
+        _ffiApi.requestPermissionsWithWrappedError(
+          pigeonVar_error,
+          completionHandler: ffi_bridge.ObjCBlock_ffiVoid.listener(
+            () {
+              if (pigeonVar_error.code != null) {
+                pigeonVar_completer.completeError(_wrapFfiError(pigeonVar_error));
+              } else {
+                pigeonVar_completer.complete();
+              }
+            },
+          ),
+        );
+        return await pigeonVar_completer.future;
+
       } else {
         throw Exception('No JNI or FFI api available');
       }
@@ -419,6 +729,23 @@ class HealthConnectApiForNativeInterop {
     try {
       if (_jniApi != null) {
         await _jniApi.openHealthConnectSettings();
+      } else if (_ffiApi != null) {
+        final pigeonVar_error = ffi_bridge.PigeonError();
+        final Completer<void> pigeonVar_completer = Completer<void>();
+        _ffiApi.openHealthConnectSettingsWithWrappedError(
+          pigeonVar_error,
+          completionHandler: ffi_bridge.ObjCBlock_ffiVoid.listener(
+            () {
+              if (pigeonVar_error.code != null) {
+                pigeonVar_completer.completeError(_wrapFfiError(pigeonVar_error));
+              } else {
+                pigeonVar_completer.complete();
+              }
+            },
+          ),
+        );
+        return await pigeonVar_completer.future;
+
       } else {
         throw Exception('No JNI or FFI api available');
       }
@@ -433,6 +760,24 @@ class HealthConnectApiForNativeInterop {
         final JList<jni_bridge.BloodPressureRecordPigeon> pigeonVar_res = await _jniApi.readBloodPressure(startMillis, endMillis);
         final List<BloodPressureRecordPigeon> pigeonVar_dartTypeRes = (_PigeonJniCodec.readValue(pigeonVar_res)! as List<Object?>).cast<BloodPressureRecordPigeon>();
         return pigeonVar_dartTypeRes;
+      } else if (_ffiApi != null) {
+        final pigeonVar_error = ffi_bridge.PigeonError();
+        final Completer<List<BloodPressureRecordPigeon>> pigeonVar_completer = Completer<List<BloodPressureRecordPigeon>>();
+        _ffiApi.readBloodPressureWithStartMillis(
+          startMillis, endMillis: endMillis,
+        wrappedError: pigeonVar_error,
+          completionHandler: ffi_bridge.ObjCBlock_ffiVoid_NSArray.listener(
+            (NSArray? pigeonVar_res) {
+              if (pigeonVar_error.code != null) {
+                pigeonVar_completer.completeError(_wrapFfiError(pigeonVar_error));
+              } else {
+                pigeonVar_completer.complete((_PigeonFfiCodec.readValue(pigeonVar_res)! as List<Object?>).cast<BloodPressureRecordPigeon>());
+              }
+            },
+          ),
+        );
+        return await pigeonVar_completer.future;
+
       } else {
         throw Exception('No JNI or FFI api available');
       }
@@ -445,6 +790,24 @@ class HealthConnectApiForNativeInterop {
     try {
       if (_jniApi != null) {
         await _jniApi.writeBloodPressure(record.toJni());
+      } else if (_ffiApi != null) {
+        final pigeonVar_error = ffi_bridge.PigeonError();
+        final Completer<void> pigeonVar_completer = Completer<void>();
+        _ffiApi.writeBloodPressureWithRecord(
+          record.toFfi(),
+        wrappedError: pigeonVar_error,
+          completionHandler: ffi_bridge.ObjCBlock_ffiVoid.listener(
+            () {
+              if (pigeonVar_error.code != null) {
+                pigeonVar_completer.completeError(_wrapFfiError(pigeonVar_error));
+              } else {
+                pigeonVar_completer.complete();
+              }
+            },
+          ),
+        );
+        return await pigeonVar_completer.future;
+
       } else {
         throw Exception('No JNI or FFI api available');
       }
@@ -480,7 +843,7 @@ class HealthConnectApi {
   }) {
     HealthConnectApiForNativeInterop? nativeInteropApi;
     String nativeInteropApiInstanceName = '';
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
       if (messageChannelSuffix.isEmpty) {
         nativeInteropApi = HealthConnectApiForNativeInterop.getInstance();
       } else {

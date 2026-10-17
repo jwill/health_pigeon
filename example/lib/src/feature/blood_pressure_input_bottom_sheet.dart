@@ -62,8 +62,8 @@ class _BloodPressureInputBottomSheetState
       notes: _notesController.text,
     );
 
-    // Use health connect if on Android
-    if (Platform.isAndroid) {
+    // Use health platform service (Health Connect on Android, HealthKit on iOS)
+    if (Platform.isAndroid || Platform.isIOS) {
       widget.healthConnectService.insertBloodPressure(record);
     }
 

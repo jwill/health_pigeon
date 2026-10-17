@@ -3,19 +3,18 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/gen/health_connect.g.dart',
-    kotlinOut: 'android/src/main/kotlin/com/example/health_pigeon/HealthPigeon.g.kt',
+    kotlinOut:
+        'android/src/main/kotlin/com/example/health_pigeon/HealthPigeon.g.kt',
     kotlinOptions: KotlinOptions(
       package: 'com.example.health_pigeon',
       useJni: true,
       appDirectory: 'example',
       jnigenOptions: JnigenOptions(
-        config: JnigenConfig(
-          androidSdk: AndroidSdk(
-            androidExample: 'example',
-          ),
-        ),
+        config: JnigenConfig(androidSdk: AndroidSdk(androidExample: 'example')),
       ),
     ),
+    swiftOut: 'ios/health_pigeon/Sources/health_pigeon/HealthPigeon.g.swift',
+    swiftOptions: SwiftOptions(useFfi: true, ffiModuleName: 'health_pigeon'),
     dartPackageName: 'blood_pressure_app',
   ),
 )
@@ -45,7 +44,10 @@ abstract class HealthConnectApi {
   void openHealthConnectSettings();
 
   @async
-  List<BloodPressureRecordPigeon> readBloodPressure(int startMillis, int endMillis);
+  List<BloodPressureRecordPigeon> readBloodPressure(
+    int startMillis,
+    int endMillis,
+  );
 
   @async
   void writeBloodPressure(BloodPressureRecordPigeon record);

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:signals/signals.dart';
 import 'package:flutter/services.dart';
 import 'package:health_pigeon/health_pigeon.dart';
@@ -31,7 +32,7 @@ class HealthConnectService {
       }
       await _api.requestPermissions();
       await _updateConnectionStatus();
-      if (!isConnected.value) {
+      if (!isConnected.value && Platform.isAndroid) {
         // Health Connect only prompts once via activity contract.
         // If permissions remain ungranted, redirect to Health Connect settings.
         await _api.openHealthConnectSettings();

@@ -16,10 +16,18 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "health_pigeon_objc_gen",
+            dependencies: [],
+            path: "Sources/health_pigeon_objc_gen",
+            publicHeadersPath: "."
+        ),
+        .target(
             name: "health_pigeon",
             dependencies: [
+                "health_pigeon_objc_gen",
                 .product(name: "FlutterFramework", package: "FlutterFramework")
             ],
+            path: "Sources/health_pigeon",
             resources: [
                 // If your plugin requires a privacy manifest, for example if it uses any required
                 // reason APIs, update the PrivacyInfo.xcprivacy file to describe your plugin's

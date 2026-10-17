@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:signals_flutter/signals_flutter.dart';
@@ -15,6 +16,7 @@ class SettingsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
+    final serviceName = Platform.isIOS ? 'Apple Health' : 'Health Connect';
     return Scaffold(
       appBar: AppBar(
         title: Text('Settings', style: theme.textTheme.h4),
@@ -98,8 +100,8 @@ class SettingsView extends StatelessWidget {
                           final shouldSync = await showShadDialog<bool>(
                             context: context,
                             builder: (context) => ShadDialog(
-                              title: const Text('Sync to Health Connect?'),
-                              description: Text('Do you want to sync ${records.length} records to Health Connect?'),
+                              title: Text('Sync to $serviceName?'),
+                              description: Text('Do you want to sync ${records.length} records to $serviceName?'),
                               actions: [
                                 ShadButton.outline(
                                   child: const Text('No'),
@@ -117,9 +119,9 @@ class SettingsView extends StatelessWidget {
                             await controller.healthConnectService.batchInsertBloodPressure(records);
                             if (context.mounted) {
                               ShadToaster.of(context).show(
-                                const ShadToast(
-                                  title: Text('Synced'),
-                                  description: Text('Records synced to Health Connect.'),
+                                ShadToast(
+                                  title: const Text('Synced'),
+                                  description: Text('Records synced to $serviceName.'),
                                 ),
                               );
                             }
@@ -151,14 +153,14 @@ class SettingsView extends StatelessWidget {
                                     .batchInsertBloodPressure(controller.recordsSignal.value);
                                 if (context.mounted) {
                                   ShadToaster.of(context).show(
-                                    const ShadToast(
-                                      title: Text('Sync Complete'),
-                                      description: Text('All records synced to Health Connect.'),
+                                    ShadToast(
+                                      title: const Text('Sync Complete'),
+                                      description: Text('All records synced to $serviceName.'),
                                     ),
                                   );
                                 }
                               },
-                              child: const Text('Sync All to Health Connect'),
+                              child: Text('Sync All to $serviceName'),
                             ),
                           );
                         }
@@ -179,7 +181,7 @@ class SettingsView extends StatelessWidget {
                             controller.healthConnectService.requestPermissions();
                           },
                           child: Text(
-                            isConnected ? 'Connected to Health Connect' : 'Connect to Health Connect',
+                            isConnected ? 'Connected to $serviceName' : 'Connect to $serviceName',
                           ),
                         );
                       },
